@@ -1,4 +1,4 @@
-# Mi Balance
+# CIFRA
 
 Planificador financiero personal para administrar ingresos quincenales, pagos fijos, gastos y metas de ahorro en pesos dominicanos.
 

@@ -85,6 +85,41 @@ const money = new Intl.NumberFormat('es-DO', {
 
 const formatMoney = (value) => money.format(Number(value) || 0)
 
+function AnimatedMoney({ value, className = '', prefix = '' }) {
+  const [displayValue, setDisplayValue] = useState(0)
+  const currentValueRef = useRef(0)
+
+  useEffect(() => {
+    const target = Number(value) || 0
+    const start = currentValueRef.current
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+    if (reduceMotion || start === target) {
+      currentValueRef.current = target
+      setDisplayValue(target)
+      return undefined
+    }
+
+    let animationFrame
+    const startedAt = performance.now()
+    const duration = 650
+
+    const animate = (timestamp) => {
+      const progress = Math.min((timestamp - startedAt) / duration, 1)
+      const easedProgress = 1 - (1 - progress) ** 3
+      const nextValue = start + (target - start) * easedProgress
+      currentValueRef.current = nextValue
+      setDisplayValue(nextValue)
+      if (progress < 1) animationFrame = window.requestAnimationFrame(animate)
+    }
+
+    animationFrame = window.requestAnimationFrame(animate)
+    return () => window.cancelAnimationFrame(animationFrame)
+  }, [value])
+
+  return <strong className={`${className} animated-money`.trim()}>{prefix}{formatMoney(displayValue)}</strong>
+}
+
 const monthKey = (date) =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
 
@@ -622,7 +657,7 @@ function App() {
           <div className="savings-hero">
             <div>
               <div className="savings-title-row"><span>{selectedSavingsView.title}</span><b>{selectedSavingsView.mode}</b></div>
-              <strong>{formatMoney(selectedSavingsView.value)}</strong>
+              <AnimatedMoney value={selectedSavingsView.value} />
               <small>{selectedSavingsView.detail}</small>
             </div>
             <div className="progress-ring" style={{ '--progress': `${progress * 3.6}deg` }}>
@@ -701,11 +736,11 @@ function App() {
   return (
     <div className="app-shell">
       <header className="app-header">
-        <div className="brand"><div className="brand-mark"><WalletCards size={20} /></div><div><strong>Mi Balance</strong><span>Finanzas personales</span></div></div>
+        <div className="brand"><div className="brand-mark"><span>C.</span></div><div><strong>CIFRA</strong><span>Finanzas personales</span></div></div>
         <nav className="top-navigation">
           {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
             <button key={id} className={activeView === id ? 'active' : ''} onClick={() => setActiveView(id)}>
-              <Icon size={16} strokeWidth={1.9} /><span>{label}</span>
+              <Icon size={16} strokeWidth={2} /><span>{label}</span>
             </button>
           ))}
         </nav>
@@ -722,7 +757,7 @@ function App() {
 
       {sidebarOpen && <button className="menu-backdrop" onClick={() => setSidebarOpen(false)} aria-label="Cerrar menú" />}
       <aside className={`mobile-menu ${sidebarOpen ? 'open' : ''}`}>
-        <div className="mobile-menu-head"><div className="brand"><div className="brand-mark"><WalletCards size={20} /></div><div><strong>Mi Balance</strong><span>Finanzas personales</span></div></div><button onClick={() => setSidebarOpen(false)} aria-label="Cerrar menú"><X /></button></div>
+        <div className="mobile-menu-head"><div className="brand"><div className="brand-mark"><span>C.</span></div><div><strong>CIFRA</strong><span>Finanzas personales</span></div></div><button onClick={() => setSidebarOpen(false)} aria-label="Cerrar menú"><X /></button></div>
         <nav>
           {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
             <button key={id} className={activeView === id ? 'active' : ''} onClick={() => { setActiveView(id); setSidebarOpen(false) }}><Icon size={18} />{label}</button>
@@ -740,7 +775,7 @@ function App() {
           </div>
           <button className="header-add" onClick={() => openModal('expense')} aria-label="Nuevo movimiento"><Plus size={18} /></button>
         </div>
-        <div className="page-content">{renderPage()}</div>
+        <div className="page-content"><div className="view-transition" key={`${activeView}-${monthKey(selectedMonth)}`}>{renderPage()}</div></div>
       </main>
 
       {modalOpen && (
@@ -762,7 +797,7 @@ function Dashboard({ totals, savingsView, payPeriods, items, statuses, hasData, 
   return (
     <>
       <section className="welcome-row">
-        <div><span className="eyebrow">PANORAMA MENSUAL</span><h1>Resumen financiero</h1><p>Todo lo importante de tu mes, en un solo lugar.</p></div>
+        <div><span className="eyebrow">TU RESUMEN MENSUAL</span><h1>Tu dinero,<br /><em>bajo control.</em></h1><p>Organiza cada quincena, cumple tus metas y disfruta más tranquilidad.</p></div>
         <button className="primary-button mobile-add" onClick={() => onAdd('expense')}><Plus size={18} /> Agregar</button>
       </section>
 
@@ -777,19 +812,19 @@ function Dashboard({ totals, savingsView, payPeriods, items, statuses, hasData, 
       <section className="balance-hero">
         <div className="hero-balance">
           <span>Disponible al finalizar el mes</span>
-          <strong className={totals.available < 0 ? 'negative' : ''}>{formatMoney(totals.available)}</strong>
-          <small>Balance confirmado: {formatMoney(totals.actualBalance)}</small>
+          <AnimatedMoney value={totals.available} className={totals.available < 0 ? 'negative' : ''} />
+          <small>Balance confirmado &nbsp; / &nbsp; {formatMoney(totals.actualBalance)}</small>
         </div>
         <div className="hero-metrics">
-          <div><span>Ingresos</span><strong>{formatMoney(totals.income)}</strong><small>{formatMoney(totals.received)} recibidos</small></div>
-          <div><span>Gastos</span><strong>{formatMoney(totals.expenses)}</strong><small>{formatMoney(totals.paidExpenses)} pagados</small></div>
-          <div><span>{savingsView.mode === 'Proyección' ? 'Ahorro proyectado' : 'Ahorro total'}</span><strong>{formatMoney(savingsView.value)}</strong><small>{savingsView.mode}</small></div>
+          <div><span>Ingresos</span><AnimatedMoney value={totals.income} /><small>{formatMoney(totals.received)} recibidos</small></div>
+          <div><span>Gastos</span><AnimatedMoney value={totals.expenses} /><small>{formatMoney(totals.paidExpenses)} pagados</small></div>
+          <div><span>{savingsView.mode === 'Proyección' ? 'Ahorro proyectado' : 'Ahorro total'}</span><AnimatedMoney value={savingsView.value} /><small>{savingsView.mode}</small></div>
         </div>
       </section>
 
       <section className="pay-periods-section">
         <div className="pay-periods-heading">
-          <div><span className="eyebrow">PRESUPUESTO POR FECHA DE COBRO</span><h2>Disponible por quincena</h2></div>
+          <div><span className="eyebrow">PRESUPUESTO QUINCENAL</span><h2>Dos quincenas, un solo plan.</h2></div>
           <p>Los compromisos se asignan automáticamente según su fecha.</p>
         </div>
         <div className="pay-periods-grid">
@@ -801,7 +836,7 @@ function Dashboard({ totals, savingsView, payPeriods, items, statuses, hasData, 
         <div className="content-card balance-card">
           <div className="section-heading"><div><span className="eyebrow">DISTRIBUCIÓN</span><h2>Plan del mes</h2></div></div>
           <div className="balance-visual">
-            <div className="balance-main"><span>Después de compromisos</span><strong>{formatMoney(totals.available)}</strong><small>{Math.round(100 - expensePercent)}% de tus ingresos queda disponible</small></div>
+            <div className="balance-main"><span>Después de compromisos</span><AnimatedMoney value={totals.available} /><small>{Math.round(100 - expensePercent)}% de tus ingresos queda disponible</small></div>
             <div className="donut" style={{ '--used': `${expensePercent * 3.6}deg` }}><div><strong>{Math.round(expensePercent)}%</strong><span>asignado</span></div></div>
           </div>
           <div className="allocation-bar"><span style={{ width: `${totals.income ? (totals.expenses / totals.income) * 100 : 0}%` }} /><span style={{ width: `${totals.income ? (totals.savings / totals.income) * 100 : 0}%` }} /></div>
@@ -824,10 +859,11 @@ function Dashboard({ totals, savingsView, payPeriods, items, statuses, hasData, 
 function PayPeriodCard({ period, index }) {
   return (
     <article className={`pay-period-card period-${index + 1}`}>
+      <span className="period-index">0{index + 1}</span>
       <div className="pay-period-top">
         <div className="pay-period-icon"><CalendarDays size={19} /></div>
         <div><strong>{period.label}</strong><span>{period.range}</span></div>
-        <div className={`period-available ${period.available < 0 ? 'negative' : ''}`}><span>Disponible</span><strong>{formatMoney(period.available)}</strong></div>
+        <div className={`period-available ${period.available < 0 ? 'negative' : ''}`}><span>Disponible</span><AnimatedMoney value={period.available} /></div>
       </div>
       <div className="period-breakdown">
         <span><i className="income-dot" /> Ingresos <b>{formatMoney(period.income)}</b></span>
@@ -852,8 +888,8 @@ function SavingsProjection({ rows, horizon, onHorizonChange }) {
         </div>
       </div>
       <div className="projection-summary">
-        <div><span>Estimado en {horizon} meses</span><strong>{formatMoney(finalTotal)}</strong></div>
-        <div><span>Aportes proyectados</span><strong>+{formatMoney(totalContributions)}</strong></div>
+        <div><span>Estimado en {horizon} meses</span><AnimatedMoney value={finalTotal} /></div>
+        <div><span>Aportes proyectados</span><AnimatedMoney value={totalContributions} prefix="+" /></div>
       </div>
       <div className="projection-chart" aria-label={`Proyección de ahorro a ${horizon} meses`}>
         {rows.map((row) => (
